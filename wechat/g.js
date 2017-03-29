@@ -2,12 +2,14 @@
  * Created by 75339 on 2017/3/24.
  */
 var sha1=require('sha1');
+var getRawBody=require('raw-body');
 var Wechat=require('./wechat.js');
 var util=require('./util.js');
-var getRawBody=require('raw-body');
-module.exports=function(opts){
-    //var wechat=new Wechat(opts);
-    return function *(next){
+
+module.exports=function(opts,handler){
+    var wechat=new Wechat(opts);
+
+    return function*(next){
         var token=opts.Token;
         var signature=this.query.signature;
         var nonce=this.query.nonce;
@@ -35,40 +37,10 @@ module.exports=function(opts){
             var content=yield util.parseXMLAsync(data);
 
             var message=util.formatMessage(content.xml);
-           console.log(message)
-             if(message.MsgType=='event'){
-                if(message.Event=='subscribe'){
-                    var now=new Date().getTime();
-                    that.status=200;
-                    that.type='application/xml';
-                    var reply='<xml>'+
-                        '<ToUserName><![CDATA['+message.FromUserName+']]></ToUserName>'+
-                        '<FromUserName><![CDATA['+message.ToUserName+']]></FromUserName>'+
-                        '<CreateTime>'+now+'</CreateTime>'+
-                        '<MsgType><![CDATA[text]]></MsgType>'+
-                        '<Content><![CDATA[我是你的偶像，李钰]]></Content>'+
-                        '</xml>';
-                    console.log(reply)
-                    that.body=reply;
-                    return
-                }
-            }else if(message.MsgType=='text'){
+            this.weixin=message;
 
-                     var now=new Date().getTime();
-                     that.status=200;
-                     that.type='application/xml';
-                     var reply='<xml>'+
-                         '<ToUserName><![CDATA['+message.FromUserName+']]></ToUserName>'+
-                         '<FromUserName><![CDATA['+message.ToUserName+']]></FromUserName>'+
-                         '<CreateTime>'+now+'</CreateTime>'+
-                         '<MsgType><![CDATA[text]]></MsgType>'+
-                         '<Content><![CDATA[我给你说个锤子]]></Content>'+
-                         '</xml>';
-                     console.log(reply)
-                     that.body=reply;
-                     return
-
-             }
+            yield handler.call(this,next);
+            wechat.reply.call(this);
         }
 
     };
